@@ -13,6 +13,15 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
+            $table->string('category'); // Product category
+            $table->string('name');     // Product name
+            $table->enum('unit', ['single', 'bulk']); // Unit type
+            $table->text('description')->nullable();  // Description
+            $table->decimal('selling_price', 12, 2); // Selling price
+            $table->decimal('buying_price', 12, 2);  // Buying price
+            $table->enum('tax', ['15%', '0%', 'ext']); // Tax
+            $table->string('hscode')->nullable();     // HS Code
+            $table->date('expiry_date')->nullable();  // Expiry date
             $table->timestamps();
         });
     }

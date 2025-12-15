@@ -2,6 +2,12 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Crypt;
+use App\Http\Controllers\ClientDetailController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\POSController;
+
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -16,5 +22,58 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+
+
+
+
+Route::prefix('settings')->middleware(['auth'])->group(function () {
+    Route::get('/client-details', [ClientDetailController::class, 'index'])
+        ->name('client-details.index');
+
+    Route::get('/client-details/create', [ClientDetailController::class, 'create'])
+        ->name('client-details.create');
+
+    Route::post('/client-details', [ClientDetailController::class, 'store'])
+        ->name('client-details.store');
+
+    Route::get('/client-details/{id}/edit', [ClientDetailController::class, 'edit'])
+        ->name('client-details.edit');
+
+    Route::put('/client-details/{id}', [ClientDetailController::class, 'update'])
+        ->name('client-details.update');
+
+    Route::delete('/client-details/{id}', [ClientDetailController::class, 'destroy'])
+        ->name('client-details.destroy');
+});
+
+
+
+Route::middleware(['auth'])->group(function () {
+
+    // Product Index
+    Route::get('/products', [ProductController::class, 'index'])
+        ->name('products.index');
+
+    // Create Product
+    Route::get('/products/create', [ProductController::class, 'create'])
+        ->name('products.create');
+    Route::post('/products', [ProductController::class, 'store'])
+        ->name('products.store');
+
+    // Edit Product (hashed ID)
+    Route::get('/products/{hashedId}/edit', [ProductController::class, 'edit'])
+        ->name('products.edit');
+
+    // Update Product (hashed ID)
+    Route::put('/products/{hashedId}', [ProductController::class, 'update'])
+        ->name('products.update');
+
+    // Delete Product (hashed ID)
+    Route::delete('/products/{hashedId}', [ProductController::class, 'destroy'])
+        ->name('products.destroy');
+
+});
+
 
 require __DIR__.'/auth.php';

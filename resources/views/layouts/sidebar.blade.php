@@ -20,28 +20,26 @@
 
     <hr class="sidebar-divider">
 
+    <!-- POS -->
     <div class="sidebar-heading">POS Management</div>
 
-    <li class="nav-item">
-        <a class="nav-link" href="#">
-            <i class="fas fa-fw fa-cash-register"></i>
-            <span>Point of Sale</span>
-        </a>
-    </li>
+<li class="nav-item">
+    <a class="nav-link" href="{{ route('pos.index') }}">
+        <i class="fas fa-fw fa-cash-register"></i>
+        <span>Point of Sale</span>
+    </a>
+</li>
 
-    <li class="nav-item">
-        <a class="nav-link" href="#">
-            <i class="fas fa-fw fa-box"></i>
-            <span>Products</span>
-        </a>
-    </li>
 
-    <li class="nav-item">
-        <a class="nav-link" href="#">
-            <i class="fas fa-fw fa-warehouse"></i>
-            <span>Inventory</span>
-        </a>
-    </li>
+<li class="nav-item">
+    <a class="nav-link" href="{{ route('products.index') }}">
+        <i class="fas fa-fw fa-box"></i>
+        <span>Products</span>
+    </a>
+</li>
+
+
+    
 
     <li class="nav-item">
         <a class="nav-link" href="#">
@@ -56,6 +54,19 @@
             <span>Sales Reports</span>
         </a>
     </li>
+
+    <hr class="sidebar-divider">
+
+    <!-- Settings -->
+    <div class="sidebar-heading">Settings</div>
+
+<li class="nav-item">
+    <a class="nav-link" href="{{ route('client-details.index') }}">
+        <i class="fas fa-fw fa-cog"></i>
+        <span>System Settings</span>
+    </a>
+</li>
+
 
 </ul>
 

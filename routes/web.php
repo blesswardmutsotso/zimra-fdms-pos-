@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Crypt;
 use App\Http\Controllers\ClientDetailController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\POSController;
+use App\Http\Controllers\FiscalDeviceController;
+use App\Http\Controllers\CustomerController;
 
 
 
@@ -45,6 +47,9 @@ Route::prefix('settings')->middleware(['auth'])->group(function () {
 
     Route::delete('/client-details/{id}', [ClientDetailController::class, 'destroy'])
         ->name('client-details.destroy');
+
+    Route::resource('device', FiscalDeviceController::class);
+    
 });
 
 
@@ -75,5 +80,19 @@ Route::middleware(['auth'])->group(function () {
 
 });
 
+Route::middleware(['auth'])->group(function () {
+
+    // Generate hashed POS URL dynamically
+    Route::get('/p/{hash}', [POSController::class, 'index'])
+        ->name('pos.hashed');
+
+});
+
+
+Route::middleware(['auth'])->group(function () {
+
+    Route::resource('customers', CustomerController::class);
+
+});
 
 require __DIR__.'/auth.php';

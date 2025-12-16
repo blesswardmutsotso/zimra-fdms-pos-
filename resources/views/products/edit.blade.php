@@ -38,6 +38,7 @@
                 <form action="{{ route('products.update', Crypt::encryptString($product->id)) }}" method="POST">
                     @csrf
                     @method('PUT')
+
                     <div class="row">
 
                         <div class="col-md-6 mb-3">
@@ -54,8 +55,8 @@
                             <label for="unit">Unit *</label>
                             <select name="unit" class="form-control @error('unit') is-invalid @enderror" required>
                                 <option value="">-- Select Unit --</option>
-                                <option value="single" {{ old('unit', $product->unit) == 'single' ? 'selected' : '' }}>Single</option>
-                                <option value="bulk" {{ old('unit', $product->unit) == 'bulk' ? 'selected' : '' }}>Bulk</option>
+                                <option value="single" {{ old('unit', $product->unit) === 'single' ? 'selected' : '' }}>Single</option>
+                                <option value="bulk" {{ old('unit', $product->unit) === 'bulk' ? 'selected' : '' }}>Bulk</option>
                             </select>
                         </div>
 
@@ -63,9 +64,9 @@
                             <label for="tax">Tax *</label>
                             <select name="tax" class="form-control @error('tax') is-invalid @enderror" required>
                                 <option value="">-- Select Tax --</option>
-                                <option value="0%" {{ old('tax', $product->tax) == '0%' ? 'selected' : '' }}>0%</option>
-                                <option value="15%" {{ old('tax', $product->tax) == '15%' ? 'selected' : '' }}>15%</option>
-                                <option value="ext" {{ old('tax', $product->tax) == 'ext' ? 'selected' : '' }}>Exempt</option>
+                                <option value="0%" {{ old('tax', $product->tax) === '0%' ? 'selected' : '' }}>0%</option>
+                                <option value="15%" {{ old('tax', $product->tax) === '15%' ? 'selected' : '' }}>15%</option>
+                                <option value="ext" {{ old('tax', $product->tax) === 'ext' ? 'selected' : '' }}>Exempt</option>
                             </select>
                         </div>
 
@@ -86,7 +87,7 @@
 
                         <div class="col-md-6 mb-3">
                             <label for="expiry_date">Expiry Date</label>
-                            <input type="date" name="expiry_date" class="form-control @error('expiry_date') is-invalid @enderror" value="{{ old('expiry_date', $product->expiry_date ? $product->expiry_date->format('Y-m-d') : '') }}">
+                            <input type="date" name="expiry_date" class="form-control @error('expiry_date') is-invalid @enderror" value="{{ old('expiry_date', $product->expiry_date?->format('Y-m-d')) }}">
                         </div>
 
                         <div class="col-md-12 mb-3">

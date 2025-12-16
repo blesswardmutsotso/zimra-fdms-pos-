@@ -11,23 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('fiscal_devices', function (Blueprint $table) {
+        Schema::create('customers', function (Blueprint $table) {
             $table->id();
 
-            // Device details
-            $table->unsignedInteger('device_id'); // deviceID (int32)
-            $table->string('device_model_name');
-            $table->string('device_model_version');
-            $table->string('serial_number')->unique();
-
-            // Taxpayer details
-            $table->string('taxpayer_name');
-            $table->string('tin_number');
+            // Customer Information
+            $table->string('name');
             $table->string('vat_number')->nullable();
+            $table->string('tin_number')->nullable();
 
-            // Address details
+            // Address Information
             $table->string('house_number')->nullable();
-            $table->string('street');
+            $table->string('street')->nullable();
             $table->string('town');
             $table->string('province');
 
@@ -40,6 +34,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('fiscal_devices');
+        Schema::dropIfExists('customers');
     }
 };

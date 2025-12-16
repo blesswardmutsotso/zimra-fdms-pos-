@@ -13,8 +13,14 @@
     </a>
 </div>
 
+<div class="mb-3">
+    <input type="text" id="searchInput" class="form-control" placeholder="Search by category or name">
+</div>
+
 <div class="card shadow-lg border-transparent">
     <div class="card-body">
+
+        <!-- Success Alert -->
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 {{ session('success') }}
@@ -24,10 +30,10 @@
 
         @if($products->count())
             <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle">
+                <table class="table table-bordered table-hover align-middle" id="productsTable">
                     <thead class="table-light">
                         <tr>
-                            <th>#</th>
+                            <th>ID</th>
                             <th>Category</th>
                             <th>Name</th>
                             <th>Unit</th>
@@ -40,15 +46,15 @@
                     </thead>
                     <tbody>
                         @foreach($products as $index => $product)
-                            <tr>
+                            <tr class="product-row">
                                 <td>{{ $index + 1 }}</td>
-                                <td>{{ $product->category }}</td>
-                                <td>{{ $product->name }}</td>
+                                <td class="category">{{ $product->category }}</td>
+                                <td class="name">{{ $product->name }}</td>
                                 <td>{{ ucfirst($product->unit) }}</td>
                                 <td>{{ number_format($product->selling_price, 2) }}</td>
                                 <td>{{ number_format($product->buying_price, 2) }}</td>
                                 <td>{{ $product->tax }}</td>
-                                <td>{{ $product->expiry_date ? $product->expiry_date->format('Y-m-d') : 'N/A' }}</td>
+                                <td>{{ $product->expiry_date?->format('Y-m-d') ?? 'N/A' }}</td>
                                 <td>
                                     <a href="{{ route('products.edit', Crypt::encryptString($product->id)) }}" class="btn btn-sm btn-warning">
                                         <i class="fas fa-edit"></i>
@@ -62,6 +68,10 @@
                                 </td>
                             </tr>
                         @endforeach
+                        <!-- No results row -->
+                        <tr id="noResults" style="display: none;">
+                            <td colspan="9" class="text-center text-warning">No matching products found</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -77,4 +87,30 @@
     </div>
 </div>
 
+@endsection
+
+@section('scripts')
+<script>
+    const searchInput = document.getElementById('searchInput');
+    const productRows = document.querySelectorAll('.product-row');
+    const noResults = document.getElementById('noResults');
+
+    searchInput.addEventListener('keyup', function() {
+        const query = this.value.trim().toLowerCase();
+        let matches = 0;
+
+        productRows.forEach(row => {
+            const category = row.querySelector('.category').textContent.toLowerCase();
+            const name = row.querySelector('.name').textContent.toLowerCase();
+            if (category.includes(query) || name.includes(query)) {
+                row.style.display = '';
+                matches++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        noResults.style.display = matches === 0 ? '' : 'none';
+    });
+</script>
 @endsection

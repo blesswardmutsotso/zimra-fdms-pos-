@@ -8,14 +8,22 @@ use Illuminate\Support\Facades\Crypt;
 
 class ProductController extends Controller
 {
-   
-
     /**
      * Display a listing of products.
      */
-    public function index()
+      public function index(Request $request)
     {
-        $products = Product::orderBy('created_at', 'desc')->get();
+        $query = Product::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where('name', 'like', "%{$search}%")
+                  ->orWhere('category', 'like', "%{$search}%")
+                  ->orWhere('hscode', 'like', "%{$search}%");
+        }
+
+        $products = $query->orderBy('created_at', 'desc')->get();
+
         return view('products.index', compact('products'));
     }
 
@@ -43,9 +51,6 @@ class ProductController extends Controller
             'hscode'         => 'nullable|string|max:50',
             'expiry_date'    => 'nullable|date',
         ]);
-
-        // Cast tax to string to handle 'ext' value
-        $validated['tax'] = (string) $validated['tax'];
 
         Product::create($validated);
 
@@ -83,9 +88,6 @@ class ProductController extends Controller
             'hscode'         => 'nullable|string|max:50',
             'expiry_date'    => 'nullable|date',
         ]);
-
-        // Cast tax to string
-        $validated['tax'] = (string) $validated['tax'];
 
         $product->update($validated);
 

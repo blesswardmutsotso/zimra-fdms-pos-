@@ -19,7 +19,7 @@ return new class extends Migration
             $table->text('description')->nullable();  // Description
             $table->decimal('selling_price', 12, 2); // Selling price
             $table->decimal('buying_price', 12, 2);  // Buying price
-            $table->enum('tax', ['15%', '0%', 'ext']); // Tax
+            $table->enum('tax', ['0%', '15%', 'ext'])->default('0%')->comment('Tax options: 0%, 15%, exempt');
             $table->string('hscode')->nullable();     // HS Code
             $table->date('expiry_date')->nullable();  // Expiry date
             $table->timestamps();

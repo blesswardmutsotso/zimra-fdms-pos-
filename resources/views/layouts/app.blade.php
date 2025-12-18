@@ -10,6 +10,8 @@
     <!-- Fonts & Icons -->
     <link href="{{ asset('ui/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 
     <!-- SB Admin 2 -->
     <link href="{{ asset('ui/css/sb-admin-2.min.css') }}" rel="stylesheet">

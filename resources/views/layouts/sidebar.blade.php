@@ -43,12 +43,14 @@
     </a>
 </li>
 
-    <li class="nav-item">
-        <a class="nav-link" href="#">
-            <i class="fas fa-fw fa-file-invoice"></i>
-            <span>Sales Reports</span>
-        </a>
-    </li>
+
+<li class="nav-item">
+    <a class="nav-link" href="{{ route('sales.index') }}">
+        <i class="fas fa-fw fa-file-invoice"></i>
+        <span>Sales Reports</span>
+    </a>
+</li>
+
 
     <hr class="sidebar-divider">
 

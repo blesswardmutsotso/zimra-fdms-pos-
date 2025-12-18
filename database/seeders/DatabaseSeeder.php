@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         // Call the UserSeeder
         $this->call([
             UserSeeder::class,
+            ReceiptSeeder::class,
         ]);
 
         // Optionally, you can still create a default user via factory

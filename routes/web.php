@@ -8,6 +8,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\POSController;
 use App\Http\Controllers\FiscalDeviceController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\ReceiptController;
 
 
 
@@ -94,5 +95,14 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('customers', CustomerController::class);
 
 });
+
+Route::middleware(['auth'])->group(function () {
+
+Route::resource('sales', ReceiptController::class);
+Route::get('/sales/{sale}/print', [App\Http\Controllers\ReceiptController::class, 'print'])->name('sales.print');
+
+
+});
+
 
 require __DIR__.'/auth.php';

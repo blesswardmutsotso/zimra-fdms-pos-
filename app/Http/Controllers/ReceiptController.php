@@ -6,181 +6,279 @@ use App\Models\Sale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Exception;
 
 class ReceiptController extends Controller
 {
-
-
-
+    /* =======================
+     * LIST & VIEW
+     * ======================= */
     public function index()
-{
-    $sales = Sale::latest()->paginate(15);
-    return view('sales.index', compact('sales'));
-}
-
-
-public function show(Sale $sale)
     {
-        // Pass the Sale model to the Blade view
+        $allSales = Sale::latest()->get();
+
+        $receipts = $allSales->where('receipt_type', 'FISCAL_INVOICE');
+        $creditNotes = $allSales->where('receipt_type', 'FISCAL_CREDIT_NOTE');
+        $debitNotes = $allSales->where('receipt_type', 'FISCAL_DEBIT_NOTE');
+
+        return view('sales.index', compact('receipts', 'creditNotes', 'debitNotes'));
+    }
+
+    public function show(Sale $sale)
+    {
         return view('sales.show', compact('sale'));
     }
 
+    /* =======================
+     * PRINT PDF
+     * ======================= */
+    public function print(Sale $sale)
+    {
+        $pdf = Pdf::loadView('sales.print', compact('sale'))
+            ->setPaper('a4', 'landscape');
 
-   public function print(Sale $sale)
-{
-    // Load the view and pass the sale
-    $pdf = Pdf::loadView('sales.print', compact('sale'));
-    // Return PDF download or stream to browser
-    return $pdf->stream('invoice-'.$sale->invoice_no.'.pdf');
-    // Or for download:
-    // return $pdf->download('invoice-'.$sale->invoice_no.'.pdf');
-}
+        return $pdf->stream('invoice-' . $sale->invoice_no . '.pdf');
+    }
 
-public function edit(Sale $sale)
-{
-    return view('sales.edit', compact('sale'));
-}
-
-    /**
-     * Store a fiscal receipt
-     */
+    /* =======================
+     * STORE ORIGINAL INVOICE
+     * ======================= */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'receiptType' => 'required|string',
-            'receiptCurrency' => 'required|string|max:10',
-            'receiptCounter' => 'required|integer',
-            'receiptGlobalNo' => 'required|integer',
-            'invoiceNo' => 'required|string|unique:receipts,invoice_no',
-
-            // Buyer
-            'buyerData.buyerRegisterName' => 'required|string',
-            'buyerData.buyerTradeName' => 'nullable|string',
-            'buyerData.vatNumber' => 'nullable|string',
-            'buyerData.buyerTIN' => 'nullable|string',
-
-            'buyerData.buyerContacts.phoneNo' => 'nullable|string',
-            'buyerData.buyerContacts.email' => 'nullable|email',
-
-            'buyerData.buyerAddress.province' => 'nullable|string',
-            'buyerData.buyerAddress.city' => 'nullable|string',
-            'buyerData.buyerAddress.street' => 'nullable|string',
-            'buyerData.buyerAddress.houseNo' => 'nullable|string',
-            'buyerData.buyerAddress.district' => 'nullable|string',
-
-            // Receipt body
-            'receiptLinesTaxInclusive' => 'required|boolean',
-            'receiptLines' => 'required|array|min:1',
-            'receiptTaxes' => 'required|array|min:1',
-            'receiptPayments' => 'required|array|min:1',
-
-            'receiptTotal' => 'required|numeric',
-            'receiptPrintForm' => 'required|string',
-            'receiptDate' => 'required|date',
-
-            'username' => 'required|string',
-            'usernameSurname' => 'required|string',
-
-            'receiptNotes' => 'nullable|string',
-            'creditDebitNote' => 'nullable|array',
+            'cart' => 'required|array|min:1',
+            'cart.*.id' => 'required|integer',
+            'cart.*.name' => 'required|string',
+            'cart.*.price' => 'required|numeric|min:0',
+            'cart.*.quantity' => 'required|integer|min:1',
+            'total' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|string|max:20',
+            'currency' => 'required|string|max:10',
         ]);
 
-        DB::beginTransaction();
-
         try {
-            $receipt = Sale::create([
-                'receipt_type' => $validated['receiptType'],
-                'receipt_currency' => $validated['receiptCurrency'],
-                'receipt_counter' => $validated['receiptCounter'],
-                'receipt_global_no' => $validated['receiptGlobalNo'],
-                'invoice_no' => $validated['invoiceNo'],
+            return DB::transaction(function () use ($validated) {
 
-                'buyer_register_name' => $validated['buyerData']['buyerRegisterName'],
-                'buyer_trade_name' => $validated['buyerData']['buyerTradeName'] ?? null,
-                'vat_number' => $validated['buyerData']['vatNumber'] ?? null,
-                'buyer_tin' => $validated['buyerData']['buyerTIN'] ?? null,
+                $receiptCounter = DB::table('receipts')->lockForUpdate()->max('receipt_counter');
+                $receiptCounter = ($receiptCounter ?? 0) + 1;
 
-                'buyer_contacts' => $validated['buyerData']['buyerContacts'] ?? [],
-                'buyer_address' => $validated['buyerData']['buyerAddress'] ?? [],
-                'credit_debit_note' => $validated['creditDebitNote'] ?? null,
+                $receiptGlobalNo = DB::table('receipts')->lockForUpdate()->max('receipt_global_no');
+                $receiptGlobalNo = ($receiptGlobalNo ?? 0) + 1;
 
-                'receipt_lines_tax_inclusive' => $validated['receiptLinesTaxInclusive'],
-                'receipt_lines' => $validated['receiptLines'],
-                'receipt_taxes' => $validated['receiptTaxes'],
-                'receipt_payments' => $validated['receiptPayments'],
+                $invoiceNo = 'INV-' . now()->format('Ymd') . '-' . str_pad($receiptCounter, 5, '0', STR_PAD_LEFT);
 
-                'receipt_total' => $validated['receiptTotal'],
-                'receipt_print_form' => $validated['receiptPrintForm'],
-                'receipt_notes' => $validated['receiptNotes'] ?? null,
-                'receipt_date' => $validated['receiptDate'],
+                $receiptLines = collect($validated['cart'])->map(function ($item) {
+                    return [
+                        'product_id' => $item['id'],
+                        'description' => $item['name'],
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['price'],
+                        'line_total' => $item['price'] * $item['quantity'],
+                    ];
+                })->toArray();
 
-                'username' => $validated['username'],
-                'username_surname' => $validated['usernameSurname'],
-            ]);
+                $receiptPayments = [
+                    [
+                        'method' => $validated['payment_method'],
+                        'amount' => $validated['total'],
+                        'currency' => $validated['currency'],
+                    ]
+                ];
 
-            DB::commit();
+                $sale = Sale::create([
+                    'receipt_type' => 'FISCAL_INVOICE',
+                    'receipt_currency' => $validated['currency'],
+                    'receipt_counter' => $receiptCounter,
+                    'receipt_global_no' => $receiptGlobalNo,
+                    'invoice_no' => $invoiceNo,
+                    'buyer_register_name' => 'CASH SALE',
+                    'buyer_trade_name' => 'CASH SALE',
+                    'vat_number' => null,
+                    'buyer_tin' => null,
+                    'buyer_contacts' => ['phone' => null, 'email' => null],
+                    'buyer_address' => ['street' => null, 'city' => null, 'country' => 'ZW'],
+                    'receipt_lines_tax_inclusive' => true,
+                    'receipt_lines' => $receiptLines,
+                    'receipt_taxes' => [],
+                    'receipt_payments' => $receiptPayments,
+                    'receipt_total' => $validated['total'],
+                    'receipt_print_form' => 'POS',
+                    'receipt_notes' => 'Point of Sale Transaction',
+                    'receipt_date' => Carbon::now(),
+                    'username' => auth()->user()->name ?? 'POS',
+                    'username_surname' => auth()->user()->surname ?? '',
+                ]);
 
+                return response()->json([
+                    'success' => true,
+                    'sale_id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                ], 201);
+            });
+
+        } catch (Exception $e) {
+            Log::error('Sale creation failed', ['error' => $e->getMessage()]);
             return response()->json([
-                'message' => 'Receipt stored successfully',
-                'receipt' => $this->formatForApi($receipt),
-            ], 201);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'error' => 'Failed to store receipt',
-                'details' => $e->getMessage(),
+                'success' => false,
+                'message' => 'Failed to create sale. Please try again.',
             ], 500);
         }
     }
 
-    /**
-     * Return receipt in EXACT ZIMRA format
-     */
-    
-    /**
-     * Build API-ready JSON
-     */
-    private function formatForApi(Receipt $receipt): array
+    /* =======================
+     * EDIT & UPDATE
+     * ======================= */
+    public function edit(Sale $sale)
     {
-        return [
-            'receipt' => [
-                'receiptType' => $receipt->receipt_type,
-                'receiptCurrency' => $receipt->receipt_currency,
-                'receiptCounter' => $receipt->receipt_counter,
-                'receiptGlobalNo' => $receipt->receipt_global_no,
-                'invoiceNo' => $receipt->invoice_no,
+        return view('sales.edit', compact('sale'));
+    }
 
-                'buyerData' => [
-                    'buyerRegisterName' => $receipt->buyer_register_name,
-                    'buyerTradeName' => $receipt->buyer_trade_name,
-                    'vatNumber' => $receipt->vat_number,
-                    'buyerTIN' => $receipt->buyer_tin,
-                    'buyerContacts' => $receipt->buyer_contacts,
-                    'buyerAddress' => $receipt->buyer_address,
-                ],
+    public function update(Request $request, Sale $sale)
+    {
+        $validated = $request->validate([
+            'buyer_register_name' => 'required|string|max:255',
+            'buyer_trade_name' => 'required|string|max:255',
+            'buyer_tin' => 'nullable|string|max:50',
+            'vat_number' => 'nullable|string|max:50',
+            'buyer_contacts' => 'nullable|array',
+            'buyer_contacts.phone' => 'nullable|string|max:50',
+            'buyer_contacts.email' => 'nullable|email|max:100',
+            'buyer_address' => 'nullable|array',
+            'buyer_address.street' => 'nullable|string|max:255',
+            'buyer_address.city' => 'nullable|string|max:100',
+            'buyer_address.province' => 'nullable|string|max:100',
+            'receipt_lines' => 'nullable|array',
+            'receipt_lines.*.receiptLineName' => 'nullable|string|max:255',
+            'receipt_lines.*.receiptLinePrice' => 'nullable|numeric|min:0',
+            'receipt_lines.*.receiptLineQuantity' => 'nullable|integer|min:0',
+            'receipt_lines.*.receiptLineTotal' => 'nullable|numeric|min:0',
+            'receipt_lines.*.taxPercent' => 'nullable|numeric|min:0',
+            'receipt_payments' => 'nullable|array',
+            'receipt_payments.*.moneyTypeCode' => 'nullable|string|max:50',
+            'receipt_payments.*.paymentAmount' => 'nullable|numeric|min:0',
+            'receipt_total' => 'nullable|numeric|min:0',
+            'receipt_notes' => 'nullable|string|max:1000',
+        ]);
 
-                'receiptNotes' => $receipt->receipt_notes,
-                'username' => $receipt->username,
-                'usernameSurname' => $receipt->username_surname,
-                'receiptDate' => $receipt->receipt_date->toIso8601String(),
+        try {
+            $sale->update($validated);
+            return redirect()->route('sales.show', $sale)->with('success', 'Invoice updated successfully.');
+        } catch (Exception $e) {
+            Log::error('Invoice update failed', ['sale_id' => $sale->id, 'error' => $e->getMessage()]);
+            return back()->with('error', 'Failed to update invoice. Please try again.');
+        }
+    }
 
-                'creditDebitNote' => $receipt->credit_debit_note,
+    /* =======================
+     * DELETE
+     * ======================= */
+    public function destroy(Sale $sale)
+    {
+        try {
+            $sale->delete();
+            return redirect()->route('sales.index')->with('success', 'Invoice deleted successfully.');
+        } catch (Exception $e) {
+            Log::error('Invoice deletion failed', ['sale_id' => $sale->id, 'error' => $e->getMessage()]);
+            return back()->with('error', 'Failed to delete invoice. Please try again.');
+        }
+    }
 
-                'receiptLinesTaxInclusive' => $receipt->receipt_lines_tax_inclusive,
-                'receiptLines' => $receipt->receipt_lines,
-                'receiptTaxes' => $receipt->receipt_taxes,
-                'receiptPayments' => $receipt->receipt_payments,
+    /* =======================
+     * CREDIT / DEBIT NOTES
+     * ======================= */
+    public function generateCreditNote(Sale $sale)
+    {
+        return $this->generateNote($sale, 'CreditNote', -1, 'Credit Note generated successfully.');
+    }
 
-                'receiptTotal' => $receipt->receipt_total,
-                'receiptPrintForm' => $receipt->receipt_print_form,
+    public function generateDebitNote(Sale $sale)
+    {
+        return $this->generateNote($sale, 'DebitNote', 1, 'Debit Note generated successfully.');
+    }
 
-                'receiptDeviceSignature' => [
-                    'hash' => $receipt->device_hash,
-                    'signature' => $receipt->device_signature,
-                ],
-            ]
-        ];
+    private function generateNote(Sale $sale, string $type, int $sign, string $successMessage)
+    {
+        try {
+            if ($this->isNote($sale)) {
+                return back()->with('error', 'You cannot generate a note from a note.');
+            }
+
+            if ($this->noteExists($sale->id, $type)) {
+                return back()->with('info', "$type already exists for this invoice.");
+            }
+
+            $note = $this->createNote($sale, $type, $sign);
+
+            return redirect()->route('sales.show', $note)->with('success', $successMessage);
+
+        } catch (Exception $e) {
+            Log::error("Failed to generate $type", ['sale_id' => $sale->id, 'error' => $e->getMessage()]);
+            return back()->with('error', "Failed to generate $type. Please try again.");
+        }
+    }
+
+    /* =======================
+     * INTERNAL HELPERS
+     * ======================= */
+    private function isNote(Sale $sale): bool
+    {
+        return in_array($sale->receipt_type, ['CreditNote', 'DebitNote']);
+    }
+
+    private function noteExists(int $originalId, string $type): bool
+    {
+        return Sale::whereJsonContains('credit_debit_note->original_receipt_id', $originalId)
+            ->whereJsonContains('credit_debit_note->type', $type)
+            ->exists();
+    }
+
+    private function createNote(Sale $sale, string $type, int $sign): Sale
+    {
+        return DB::transaction(function () use ($sale, $type, $sign) {
+            $exists = Sale::whereJsonContains('credit_debit_note->original_receipt_id', $sale->id)
+                ->whereJsonContains('credit_debit_note->type', $type)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($exists) {
+                throw new \RuntimeException("$type already exists for this invoice.");
+            }
+
+            $note = $sale->replicate();
+            $note->receipt_type = $type;
+            $note->invoice_no = strtoupper(substr($type, 0, 2)) . '-' . now()->format('Ymd') . '-' . Str::upper(Str::random(6));
+            $note->receipt_counter = (Sale::max('receipt_counter') ?? 0) + 1;
+            $note->receipt_global_no = (Sale::max('receipt_global_no') ?? 0) + 1;
+            $note->receipt_date = Carbon::now();
+
+            $note->credit_debit_note = [
+                'type' => $type,
+                'original_invoice_no' => $sale->invoice_no,
+                'original_receipt_id' => $sale->id,
+                'reason' => "$type generated from invoice",
+            ];
+
+            $note->receipt_total = $sign * abs($sale->receipt_total);
+
+            $note->receipt_lines = collect($sale->receipt_lines)->map(function ($line) use ($sign) {
+                $line['receiptLineTotal'] = $sign * abs($line['receiptLineTotal'] ?? 0);
+                return $line;
+            })->values()->toArray();
+
+            $note->receipt_taxes = collect($sale->receipt_taxes)->map(function ($tax) use ($sign) {
+                $tax['taxAmount'] = $sign * abs($tax['taxAmount'] ?? 0);
+                return $tax;
+            })->values()->toArray();
+
+            $note->receipt_payments = $sign < 0 ? [] : $sale->receipt_payments;
+            $note->receipt_notes = "$type for Invoice {$sale->invoice_no}";
+
+            $note->save();
+
+            return $note;
+        });
     }
 }

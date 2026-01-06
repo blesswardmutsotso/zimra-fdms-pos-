@@ -13,7 +13,7 @@ use App\Http\Controllers\ReceiptController;
 
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('auth.login');
 });
 
 Route::get('/dashboard', function () {
@@ -100,7 +100,9 @@ Route::middleware(['auth'])->group(function () {
 
 Route::resource('sales', ReceiptController::class);
 Route::get('/sales/{sale}/print', [App\Http\Controllers\ReceiptController::class, 'print'])->name('sales.print');
-
+Route::post('/sales/{sale}/credit-note', [ReceiptController::class, 'generateCreditNote'])->name('sales.credit-note');
+Route::post('/sales/{sale}/debit-note', [ReceiptController::class, 'generateDebitNote'])->name('sales.debit-note');
+Route::post('/pos/checkout', [ReceiptController::class, 'store']) ->name('pos.checkout');
 
 });
 

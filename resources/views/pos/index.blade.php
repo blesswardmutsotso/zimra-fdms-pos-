@@ -14,12 +14,7 @@
     <h4 class="text-muted mb-1 font-weight-bold">
         {{ $companyName ?: 'Please add company name' }}
     </h4>
-    <h1 class="h3 mb-0 text-gray-800">
-      
-    </h1>
 </div>
-
-<br>
 
 <div class="row">
 
@@ -74,10 +69,26 @@
         </div>
     </div>
 
-    <!-- CART & PAYMENT -->
+    <!-- CART & CUSTOMER -->
     <div class="col-lg-5">
         <div class="card shadow border-0">
             <div class="card-body">
+
+                <!-- COLLAPSIBLE CUSTOMER DETAILS -->
+                <button class="btn btn-info btn-sm mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#customerDetails" aria-expanded="false">
+                    <i class="fas fa-user mr-1"></i> Customer Details
+                </button>
+                <div class="collapse" id="customerDetails">
+                    <div class="card card-body mb-3 p-2">
+                        <input type="text" id="customerName" class="form-control mb-1" placeholder="Name">
+                        <input type="text" id="customerVAT" class="form-control mb-1" placeholder="VAT Number">
+                        <input type="text" id="customerTIN" class="form-control mb-1" placeholder="TIN Number">
+                        <input type="text" id="customerHouse" class="form-control mb-1" placeholder="House Number">
+                        <input type="text" id="customerStreet" class="form-control mb-1" placeholder="Street">
+                        <input type="text" id="customerTown" class="form-control mb-1" placeholder="Town">
+                        <input type="text" id="customerProvince" class="form-control mb-1" placeholder="Province">
+                    </div>
+                </div>
 
                 <h5 class="mb-3">
                     <i class="fas fa-shopping-cart text-success mr-1"></i> Cart
@@ -91,21 +102,35 @@
 
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5>Total:</h5>
-                    <h4 class="text-success">$<span id="cart-total">0.00</span></h4>
+                    <h4 class="text-success">
+                        <span id="currency-label">$</span>
+                        <span id="cart-total">0.00</span>
+                    </h4>
                 </div>
 
                 <!-- PAYMENT METHOD -->
                 <div class="mb-3">
                     <label class="font-weight-bold">Payment Method</label>
                     <select id="paymentMethod" class="form-control">
-                        <option value="USD CASH" selected>USD CASH</option>
+                        <option value="USD CASH">USD CASH</option>
                         <option value="ZWG CASH">ZWG CASH</option>
                         <option value="RAND CASH">RAND CASH</option>
                         <option value="ECO CASH">ECO CASH</option>
                     </select>
                 </div>
 
-                <button class="btn btn-success btn-lg btn-block" id="checkout-btn" disabled>
+                <!-- CURRENCY -->
+                <div class="mb-3">
+                    <label class="font-weight-bold">Currency</label>
+                    <select id="currency" class="form-control">
+                        <option value="USD" selected>USD</option>
+                        <option value="ZWG">ZWG</option>
+                        <option value="ZAR">RAND</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-success btn-lg btn-block"
+                        id="checkout-btn" disabled>
                     <i class="fas fa-credit-card mr-1"></i> Complete Sale
                 </button>
 
@@ -144,8 +169,8 @@ function updateCart() {
         cartItems.innerHTML += `
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 <strong>${item.name}</strong>
-                <span>${item.quantity} x $${item.price.toFixed(2)}</span>
-                <span>$${lineTotal.toFixed(2)}</span>
+                <span>${item.quantity} x ${item.price.toFixed(2)}</span>
+                <span>${lineTotal.toFixed(2)}</span>
             </li>`;
     });
 
@@ -162,7 +187,7 @@ document.querySelectorAll('.add-to-cart').forEach(btn => {
         const price = parseFloat(this.dataset.price);
         const quantity = parseInt(row.querySelector('.quantity').value);
 
-        let existing = cart.find(item => item.id == id);
+        let existing = cart.find(i => i.id == id);
         existing ? existing.quantity += quantity
                  : cart.push({ id, name, price, quantity });
 
@@ -177,14 +202,50 @@ document.getElementById('productSearch').addEventListener('keyup', function () {
         row.style.display =
             row.dataset.name.includes(search) ||
             row.dataset.category.includes(search)
-            ? '' : 'none';
+                ? '' : 'none';
     });
 });
 
 /* CHECKOUT */
 document.getElementById('checkout-btn').addEventListener('click', function () {
-    const paymentMethod = document.getElementById('paymentMethod').value;
-    alert('Sale completed using ' + paymentMethod);
+
+    this.disabled = true;
+
+    fetch("{{ route('pos.checkout') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            cart: cart,
+            total: document.getElementById('cart-total').textContent,
+            payment_method: document.getElementById('paymentMethod').value,
+            currency: document.getElementById('currency').value,
+            customer: {
+                name: document.getElementById('customerName').value,
+                vat_number: document.getElementById('customerVAT').value,
+                tin_number: document.getElementById('customerTIN').value,
+                house_number: document.getElementById('customerHouse').value,
+                street: document.getElementById('customerStreet').value,
+                town: document.getElementById('customerTown').value,
+                province: document.getElementById('customerProvince').value,
+            }
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('Sale completed. Invoice No: ' + data.invoice_no);
+            location.reload();
+        } else {
+            alert('Validation failed');
+        }
+    })
+    .catch(() => {
+        alert('Checkout failed');
+        this.disabled = false;
+    });
 });
 </script>
 @endpush

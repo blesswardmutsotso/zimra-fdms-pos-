@@ -18,10 +18,7 @@
 
         <!-- Alerts -->
         <li class="nav-item dropdown no-arrow mx-1">
-            <a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown">
-                <i class="fas fa-bell fa-fw"></i>
-                <span class="badge badge-danger badge-counter">3</span>
-            </a>
+            
         </li>
 
         <div class="topbar-divider d-none d-sm-block"></div>
